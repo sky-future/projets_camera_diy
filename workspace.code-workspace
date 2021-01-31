@@ -10,7 +10,13 @@
 		{
 			"name": "projet_camera",
 			"path": "projet_camera"
+		},
+		{
+			"name": "working_version",
+			"path": "working_version"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "test"
+	}
 }

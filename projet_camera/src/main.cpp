@@ -1,9 +1,419 @@
 #include <Arduino.h>
+#include "esp_camera.h"
+#include <WiFi.h>
+#include "esp_http_server.h"
+
+#define CAMERA_MODEL_AI_THINKER
+
+#include "camera_pins.h"
+
+/**********************************************************************/
+/*                         PARAMETRES RELAY                           */
+/**********************************************************************/
+
+const int relay = 15;
+char texteEtatRelay[2][10] = {"FERME", "OUVERT"};
+
+/**********************************************************************/
+/*                         PARAMETRES WIFI                            */
+/**********************************************************************/
+const char* ssid = "ORBI";
+const char* password = "ingeid/3510/1976";
+
+#define TEST_WIFI_SIGNAL true
+
+// Active le mode AP (Access point). L'ESP32-CAM n'est pas connectée au WiFi, on se connecte directement sur la caméra
+#define AP_MODE false
+const char* ap_ssid = "esp32-cam";
+const char* ap_password = "12345678"; // Mini. 8 car
+
+/**********************************************************************/
+/*  PARAMETRE DE REDEMARRAGE SI LE RESEAU WIFI N'EST PAS DISPONIBLE   */
+/**********************************************************************/
+int wifi_counter = 0;
+#define wifi_try 10
+#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  30          /* Time ESP32 will go to sleep (in seconds) */
+/**********************************************************************/
+/*                             PROTOTYPES                             */
+/**********************************************************************/
+void restartESP32Cam();
+void startCameraServer();
+
+/**********************************************************************/
+/*                SERVEUR WEB + SERVEUR VIDEO                         */
+/**********************************************************************/
+#define PART_BOUNDARY "123456789000000000000987654321"
+static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
+
+httpd_handle_t stream_httpd = NULL;
+httpd_handle_t camera_httpd = NULL;
+
+//Numéro du port du serveur vidéo
+int port_number;
+
+//Code html pour la page web
+const char index_html[] PROGMEM = R"=====(
+<!DOCTYPE HTML><html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    .row {
+      display: flex;
+    }
+    .leftcol {
+      flex: 30%;
+    }
+    .rightcol {
+      flex: 70%;
+    }
+    .button {
+      width: 60px;
+      height: 40px;
+      color: white;
+      font-size: 22px;
+      background-color: #1acc59;
+      border-color: transparent;
+      border-radius: 8px
+    }
+  </style>
+</head>
+<body>
+    <h2>ESP32-CAM Stream Server</h2>
+    <div style="width:400px ; height:450px">
+      <img id="stream" style="margin-top: 50px; width:400px" src="http://%s/stream"></img>
+    </div>
+    <div>
+        <h4>Rotate Image</h4> 
+        <button class="button" onclick="rotateLeft()">&#171;</button>
+        <button class="button" onclick="rotateRight()">&#187;</button>
+        <button class="button" id="relayButton">Relay</button>
+    </div>    
+</body>
+<script>
+  function updateConfig (el){
+    
+  }
+  const relay = document.getElementById('relayButton')
+  relay.onclick = () => {
+    updateConfig(relay)
+  }
+  var deg = 0;
+  function rotateLeft() {
+    deg -= 90;
+    if ( deg <0 ) deg = 360;
+    console.log("Rotate image to left");
+    document.getElementById("stream").style.transform = 'rotate(' + deg + 'deg)';
+  }function rotateRight() {
+    deg += 90;
+    if ( deg > 360 ) deg = 0;
+    console.log("Rotate image to right");
+    document.getElementById("stream").style.transform = 'rotate(' + deg + 'deg)';
+  }
+</script>
+</html>)=====";
+
+
+/*********************************************/
+/*        GENERE LE FLUX VIDEO MJPEG         */
+/*********************************************/
+static esp_err_t stream_handler(httpd_req_t *req) {
+  camera_fb_t * fb = NULL;
+  esp_err_t res = ESP_OK;
+  size_t _jpg_buf_len = 0;
+  uint8_t * _jpg_buf = NULL;
+  char * part_buf[64];
+
+  static int64_t last_frame = 0;
+  if (!last_frame) {
+    last_frame = esp_timer_get_time();
+  }
+
+  res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
+  if (res != ESP_OK) {
+    return res;
+  }
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+  while (true) {
+    fb = esp_camera_fb_get();
+    if (!fb) {
+      // Echec de la capture de camera
+      Serial.println("JPEG capture failed"); 
+      res = ESP_FAIL;
+    } else {
+      if (fb->width > 400) {
+        if (fb->format != PIXFORMAT_JPEG) {
+          bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
+          esp_camera_fb_return(fb);
+          fb = NULL;
+          if (!jpeg_converted) {
+            // Echec de la compression JPEG
+            Serial.println("JPEG compression failed"); 
+            res = ESP_FAIL;
+          }
+        } else {
+          _jpg_buf_len = fb->len;
+          _jpg_buf = fb->buf;
+        }
+      }
+    }
+    if (res == ESP_OK) {
+      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
+      res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+    }
+    if (res == ESP_OK) {
+      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
+    }
+    if (res == ESP_OK) {
+      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+    }
+    if (fb) {
+      esp_camera_fb_return(fb);
+      fb = NULL;
+      _jpg_buf = NULL;
+    } else if (_jpg_buf) {
+      free(_jpg_buf);
+      _jpg_buf = NULL;
+    }
+    if (res != ESP_OK) {
+      break;
+    }
+  }
+  last_frame = 0;
+  return res;
+}
+
+//test relay
+static esp_err_t cmd_handler(httpd_req_t *req){
+  char variable[32] = {0,};
+  
+}
+
+/*******************************************************/
+/*         CONSTRUCTEUR DE LA PAGE HTML                */
+/*******************************************************/
+static esp_err_t web_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/html");
+  httpd_resp_set_hdr(req, "Content-Encoding", "identity");
+
+  int indexhtmlsize = sizeof(index_html) + 50;
+  char indexpage[indexhtmlsize] = "";
+  //strcat(indexpage, index_html);
+  char streamip[20] = "";
+  
+  if ( AP_MODE ) {
+  
+    // En mode AP (connexion directe à l'ESP32-CAM), l'IP est toujours 192.168.4.1
+    sprintf(streamip, "192.168.4.1:%d", port_number);
+  } else {
+    sprintf(streamip, "%d.%d.%d.%d:%d", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3], port_number);
+  }
+
+  // Remplace l'adresse du flux vidéo dans le code de la page HTML
+  sprintf(indexpage, index_html, streamip);
+  int pagezize = strlen(indexpage);
+
+  
+  // Renvoie le code source de la page HTML 
+  return httpd_resp_send(req, (const char *)indexpage, pagezize);
+}
+
+/***********************************************************/
+/*        DEMARRE LE SERVEUR WEB ET LE FLUX VIDEO          */
+/***********************************************************/
+void startCameraServer() {
+  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+
+  httpd_uri_t index_uri = {
+    .uri       = "/",
+    .method    = HTTP_GET,
+    .handler   = web_handler,
+    .user_ctx  = NULL
+  };
+
+  httpd_uri_t stream_uri = {
+    .uri       = "/stream",
+    .method    = HTTP_GET,
+    .handler   = stream_handler,
+    .user_ctx  = NULL
+  };
+
+  // Démarre le serveur web de l'interface HTML accessible depuis le navigateur internet
+  Serial.printf("Web server started on port: '%d'\n", config.server_port);
+  if (httpd_start(&camera_httpd, &config) == ESP_OK) {
+    httpd_register_uri_handler(camera_httpd, &index_uri);
+  }
+
+  config.server_port += 1;
+  config.ctrl_port += 1;
+  // Démarre le flux vidéo
+  Serial.printf("Stream server started on port: '%d'\n", config.server_port);
+  if (httpd_start(&stream_httpd, &config) == ESP_OK) {
+    httpd_register_uri_handler(stream_httpd, &stream_uri);
+  }
+
+  port_number = config.server_port;
+}
+
+void testRelay(){
+  digitalWrite(relay, HIGH);
+  delay(5000);
+  digitalWrite(relay, LOW);
+}
+
+
+
 
 void setup() {
-  // put your setup code here, to run once:
+  Serial.begin(115200);
+  Serial.setDebugOutput(true);
+  Serial.println();
+
+  pinMode(relay, OUTPUT);
+  pinMode(relay, LOW);
+  
+  // Configure les broches de la caméra
+  camera_config_t config;
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sscb_sda = SIOD_GPIO_NUM;
+  config.pin_sscb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+  
+  // Utilise toute la mémoire PSRAM disponible pour augmenter la taille du buffer vidéo 
+  /* AVAILABLE RESOLUTIONS
+     Résolutions disponibles
+    FRAMESIZE_QQVGA,    // 160x120
+    FRAMESIZE_QQVGA2,   // 128x160
+    FRAMESIZE_QCIF,     // 176x144
+    FRAMESIZE_HQVGA,    // 240x176
+    FRAMESIZE_QVGA,     // 320x240
+    FRAMESIZE_CIF,      // 400x296
+    FRAMESIZE_VGA,      // 640x480
+    FRAMESIZE_SVGA,     // 800x600
+    FRAMESIZE_XGA,      // 1024x768
+    FRAMESIZE_SXGA,     // 1280x1024
+    FRAMESIZE_UXGA,     // 1600x1200
+    FRAMESIZE_QXGA,     // 2048*1536
+  */
+  if(psramFound()){
+    config.frame_size = FRAMESIZE_UXGA; //FRAMESIZE_UXGA; // 1600x1200
+    config.jpeg_quality = 10;
+    config.fb_count = 1; // Si > 1, active le bus I2S
+  } else {
+    config.frame_size = FRAMESIZE_SVGA; // 800x600 
+    config.jpeg_quality = 12;
+    config.fb_count = 1;
+  }
+#if defined(CAMERA_MODEL_ESP_EYE)
+  pinMode(13, INPUT_PULLUP);
+  pinMode(14, INPUT_PULLUP);
+#endif
+
+  // camera init
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK) {
+    Serial.printf("Camera init failed with error 0x%x", err);
+    return;
+  }
+
+  if ( AP_MODE ) {
+   
+    // En mode AP, on se connecte directement au réseau WiFi de l'ESP32 à l'adresse http://192.168.4.1
+    /* ACCESS POINT PARAMETERS
+      ap_ssid (defined earlier): maximum of 63 characters
+      ap_password (defined earlier): minimum of 8 characters; set to NULL if you want the access point to be open
+      channel: Wi-Fi channel, number between 1 to 13
+      ssid_hidden: (0 = broadcast SSID, 1 = hide SSID)
+      max_connection: maximum simultaneous connected clients, max. 4
+      --------
+      ap_ssid (déjà définit): 63 caractères max.
+      ap_password (déjà defint): au minimum 8 caractères. NULL pour un accès libre. déconseillé !!!
+      channel: canal Wi-Fi, nombre entre 1 et 13
+      ssid_hidden: 0 = diffuser le nom du résau, 1 = cache le nom du réseau SSID
+      max_connection: nombre maximum de clients connectés simultannément à l'ESP32-CAM. 4 max. 
+    */
+    WiFi.softAP(ap_ssid, ap_password);
+  } else {  
+    /*if ( USE_FIXED_IP ) {
+      if(!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+        Serial.println("STA Failed to configure");
+      }
+    }*/
+    WiFi.begin(ssid, password);
+    while ( WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+      wifi_counter++;
+
+      if ( wifi_counter > wifi_try ) {
+        restartESP32Cam();
+      }
+    }
+    Serial.println("");
+    Serial.println("WiFi connected");
+  }
+
+  // La caméra est prête, ouvrez votre navigateur à l'adresse suivante
+  Serial.print("Camera Ready! Open your browser at 'http://");
+  
+  Serial.print(WiFi.localIP());
+  Serial.println("");
+  
+  // Test la qualité du réseau WiFi
+  if ( TEST_WIFI_SIGNAL ){
+    long logrssi = 0 ;
+    for (size_t i = 0; i < 10; i++)
+    {
+      long rssi = WiFi.RSSI();
+      logrssi = logrssi + rssi;
+      Serial.printf("measured rssi = %d dBm \n", WiFi.RSSI());
+      delay(200);
+    }
+    
+    Serial.printf("Mean rssi = %0.1d dBm \n", logrssi / 10);
+  }
+
+
+  // Start web server and MJPEG stream
+  // Démarrer le serveur web et le flux vidéo MJPEG
+  startCameraServer();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  if ( WiFi.status() != WL_CONNECTED ) {
+    // We just lost WiFi connexion!
+    // On vient de perdre la connexion WiFi
+    restartESP32Cam();
+  }
+
+  delay(10);
+}
+
+// Récupération automatique de la connexion WiFi s'il est impossible de se connecter ou si la connexion est perdue
+void restartESP32Cam()
+{
+  Serial.println("Impossible to connect WiFi network or connexion lost ! I sleep a moment and I retry later, sorry ");
+  // Activate ESP32 deep sleep mode 
+  // Met l'ESP32 en mode deep-sleep pour ne pas drainer la batterie ou consommer inutilement
+  esp_sleep_enable_timer_wakeup(uS_TO_S_FACTOR * TIME_TO_SLEEP);
+  esp_deep_sleep_start();
 }
