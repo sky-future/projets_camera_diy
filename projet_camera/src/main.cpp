@@ -20,6 +20,10 @@ char texteEtatRelay[2][10] = {"FERME", "OUVERT"};
 const char* ssid = "ORBI";
 const char* password = "ingeid/3510/1976";
 
+//test relay
+String message = "";
+String header;
+
 #define TEST_WIFI_SIGNAL true
 
 // Active le mode AP (Access point). L'ESP32-CAM n'est pas connectée au WiFi, on se connecte directement sur la caméra
@@ -187,10 +191,23 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 }
 
 //test relay
-static esp_err_t cmd_handler(httpd_req_t *req){
+/*static esp_err_t cmd_handler(httpd_req_t *req){
   char variable[32] = {0,};
+
   
-}
+
+  digitalWrite(relay, HIGH);
+   message=SendHTML();
+  httpd_resp_send(req,"text/html",message);
+  delay(5000);
+  digitalWrite(relay, LOW);
+   message=SendHTML();
+  httpd_resp_send(req,"text/html",message);
+
+  
+}*/
+
+
 
 /*******************************************************/
 /*         CONSTRUCTEUR DE LA PAGE HTML                */
@@ -257,14 +274,6 @@ void startCameraServer() {
 
   port_number = config.server_port;
 }
-
-void testRelay(){
-  digitalWrite(relay, HIGH);
-  delay(5000);
-  digitalWrite(relay, LOW);
-}
-
-
 
 
 void setup() {
