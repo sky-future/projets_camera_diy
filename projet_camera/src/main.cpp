@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include "esp_http_server.h"
 
+
 #define CAMERA_MODEL_AI_THINKER
 
 #include "camera_pins.h"
@@ -102,7 +103,7 @@ const char index_html[] PROGMEM = R"=====(
     
     function updateConfig (el){
       let value = '1'
-      const query = '${baseHost}/control?var=${el.id}&val=${value}'
+      const query = `${baseHost}/control?var=${el.id}&val=${value}`
       fetch(query)
       .then(response => {
             console.log(`request to ${query} finished, status: ${response.status}`)
@@ -204,7 +205,7 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 }
 
 //test relay
-static esp_err_t cmd_handler(httpd_req_t *req){
+/*static esp_err_t cmd_handler(httpd_req_t *req){
   
   char*  buf;
   size_t buf_len;
@@ -246,7 +247,7 @@ static esp_err_t cmd_handler(httpd_req_t *req){
     }
 
     return httpd_resp_send(req, NULL, 0);
-}
+}*/
 
 
 
@@ -319,6 +320,7 @@ void startCameraServer() {
   Serial.printf("Stream server started on port: '%d'\n", config.server_port);
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
+    httpd_register_uri_handler(stream_httpd, &cmd_uri); //rajouter pour le relay
   }
 
   port_number = config.server_port;

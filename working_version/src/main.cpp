@@ -1,17 +1,13 @@
-
 /*********
-  projetsdiy.fr - diyprojects.io
-
+  
   IMPORTANT BEFORE TO DOWNLOAD SKETCH !!!
    - Install ESP32 libraries
    - Select Board "ESP32 Wrover Module"
    - Select the Partion Scheme "Huge APP (3MB No OTA)"
    - GPIO 0 must be connected to GND to upload a sketch
    - After connecting GPIO 0 to GND, press the ESP32-CAM on-board RESET button to put your board in flashing mode
-
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files.
-
   The above copyright notice and this permission notice shall be included in all
   copies or substantial portions of the Software.
 *********/
@@ -38,7 +34,7 @@
 //Replace with your network credentials - Remplacez par vos identificants de connexion WiFi
 const char* ssid = "SEMI_ATELIER";
 const char* password = "bibiandwiwi"; 
-const int relay = 15;
+const int relay = 4;
 
 #define SERIAL_DEBUG true                // Enable / Disable log - activer / désactiver le journal
 #define ESP_LOG_LEVEL ESP_LOG_VERBOSE    // ESP_LOG_NONE, ESP_LOG_VERBOSE, ESP_LOG_DEBUG, ESP_LOG_ERROR, ESP_LOG_WARM, ESP_LOG_INFO
@@ -195,6 +191,7 @@ esp_err_t stream_handler(httpd_req_t *req) {
   }
   ESP_LOGI(TAG, "Start video streaming");
   //digitalWrite(Flashlight, HIGH);
+
   while (true) {
     fb = esp_camera_fb_get();
     if (!fb) {
@@ -214,15 +211,15 @@ esp_err_t stream_handler(httpd_req_t *req) {
       }
     }
     if (res == ESP_OK) {
-      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
+      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len); //Utilise un emplacement memoire pour le buf
 
       res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
     }
     if (res == ESP_OK) {
-      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
+      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len); //
     }
     if (res == ESP_OK) {
-      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY)); //renvoi le jpg buf vers la page web
       //digitalWrite(Flashlight, HIGH);
     }
     if (res == ESP_OK && !flag_b) {
@@ -257,16 +254,92 @@ esp_err_t stream_handler(httpd_req_t *req) {
 
 esp_err_t command_handler(httpd_req_t *req)
 {
-    digitalWrite(relay, HIGH);
-    delay(5000);
-    digitalWrite(relay, LOW);
+    char*  buf;
+    size_t buf_len;
+    char variable[32] = {0,};
+    char value[32] = {0,};
+
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    
+    if (buf_len > 1) {
+        buf = (char*)malloc(buf_len);
+        if(!buf){
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+          Serial.println("Valeur de buf :");
+          Serial.println(buf);
+            if (httpd_query_key_value(buf, "var", variable, sizeof(variable)) == ESP_OK &&
+                httpd_query_key_value(buf, "val", value, sizeof(value)) == ESP_OK) {
+            } else {
+                free(buf);
+                httpd_resp_send_404(req);
+                return ESP_FAIL;
+            }
+        } else {
+            free(buf);
+            httpd_resp_send_404(req);
+            return ESP_FAIL;
+        }
+        free(buf);
+    } else {
+        httpd_resp_send_404(req);
+        return ESP_FAIL;
+    }
+
+    int val = atoi(value);
+    //sensor_t * s = esp_camera_sensor_get();
+    int res = 0;
+
+    //Control Relay
+    if(!strcmp(variable, "relay")) {    
+        digitalWrite(relay, val);
+    }
+    else {
+        res = -1;
+
+    }
+
+    if(res){
+        return httpd_resp_send_500(req);
+    }
+
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, NULL, 0);
+}
+
+
+static const char PROGMEM INDEX_HTML[] = R"rawliteral(
+<!doctype html>
+  <html>
+  <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Expires" Content="0">
+  </head>
+
+  <body onload="document.getElementById('stream').src=location.origin+':81/stream';">
+
+  <img id="stream" style="margin-top: 50px; width:400px"></img><br>
+
+  <input type="button" value="Relay on" onclick="fetch(location.origin+'/open?var=relay&val=1');">
+  <input type="button" value="Relay off" onclick="fetch(location.origin+'/open?var=relay&val=0');">
+  </body>
+
+  </html>
+)rawliteral";
+
+static esp_err_t index_handler(httpd_req_t *req){
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, (const char *)INDEX_HTML, strlen(INDEX_HTML));
 }
 
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = WEB_SERVER_PORT;
 
-  // endpoints
+  // endpoints   
   static const httpd_uri_t static_image = {
     .uri       = URI_STATIC_JPEG,
     .method    = HTTP_GET,
@@ -289,6 +362,13 @@ void startCameraServer() {
     .user_ctx = NULL
   };
 
+  static const httpd_uri_t index_uri = {
+      .uri       = "/",
+      .method    = HTTP_GET,
+      .handler   = index_handler,
+      .user_ctx  = NULL
+  };  
+
   ESP_LOGI(TAG, "Register URIs and start web server");
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     if ( httpd_register_uri_handler(stream_httpd, &static_image) != ESP_OK) {
@@ -299,7 +379,22 @@ void startCameraServer() {
       ESP_LOGE(TAG, "register uri failed for stream_video");
       return;
     };
+    if ( httpd_register_uri_handler(stream_httpd, &uri_get) != ESP_OK) {
+      ESP_LOGE(TAG, "register uri failed for uri_get");
+      return;
+    };
+    if ( httpd_register_uri_handler(stream_httpd, &index_uri) != ESP_OK) {
+      ESP_LOGE(TAG, "register uri failed for index_uri");
+      return;
+    };    
   }
+
+  config.server_port += 1;  //Stream Port
+  config.ctrl_port += 1;    //UDP Port
+  Serial.printf("Starting stream server on port: '%d'\n", config.server_port);
+  if (httpd_start(&stream_httpd, &config) == ESP_OK) {
+      httpd_register_uri_handler(stream_httpd, &stream_video);
+  }  
 }
 
 void setup() {
