@@ -17,8 +17,8 @@ char texteEtatRelay[2][10] = {"FERME", "OUVERT"};
 /**********************************************************************/
 /*                         PARAMETRES WIFI                            */
 /**********************************************************************/
-const char* ssid = "ORBI";
-const char* password = "ingeid/3510/1976";
+const char* ssid = "SEMI_ATELIER";
+const char* password = "bibiandwiwi";
 
 //test relay
 String message = "";
@@ -97,13 +97,26 @@ const char index_html[] PROGMEM = R"=====(
     </div>    
 </body>
 <script>
-  function updateConfig (el){
+  document.addEventListener('DOMContentLoaded', function(event){
+    var baseHost = document.location.origin
     
-  }
+    function updateConfig (el){
+      let value = '1'
+      const query = '${baseHost}/control?var=${el.id}&val=${value}'
+      fetch(query)
+      .then(response => {
+            console.log(`request to ${query} finished, status: ${response.status}`)
+            })
+    }
+
   const relay = document.getElementById('relayButton')
+  
   relay.onclick = () => {
     updateConfig(relay)
   }
+
+  })
+  
   var deg = 0;
   function rotateLeft() {
     deg -= 90;
@@ -191,21 +204,49 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 }
 
 //test relay
-/*static esp_err_t cmd_handler(httpd_req_t *req){
+static esp_err_t cmd_handler(httpd_req_t *req){
+  
+  char*  buf;
+  size_t buf_len;
   char variable[32] = {0,};
-
+  char value[32] = {0,};
   
+  buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        buf = (char*)malloc(buf_len);
+        if(!buf){
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            if (httpd_query_key_value(buf, "var", variable, sizeof(variable)) == ESP_OK &&
+                httpd_query_key_value(buf, "val", value, sizeof(value)) == ESP_OK) {
+            } else {
+                free(buf);
+                httpd_resp_send_404(req);
+                return ESP_FAIL;
+            }
+        } else {
+            free(buf);
+            httpd_resp_send_404(req);
+            return ESP_FAIL;
+        }
+        free(buf);
+    } else {
+        httpd_resp_send_404(req);
+        return ESP_FAIL;
+    }
 
-  digitalWrite(relay, HIGH);
-   message=SendHTML();
-  httpd_resp_send(req,"text/html",message);
-  delay(5000);
-  digitalWrite(relay, LOW);
-   message=SendHTML();
-  httpd_resp_send(req,"text/html",message);
+    if(!strcmp(variable, "relayButton")){
+      Serial.println("La porte est ouverte");
+      digitalWrite(relay, HIGH);
+      delay(5000);
+      Serial.println("La porte est ferme");
+      digitalWrite(relay, LOW);
+    }
 
-  
-}*/
+    return httpd_resp_send(req, NULL, 0);
+}
 
 
 
@@ -256,6 +297,14 @@ void startCameraServer() {
     .method    = HTTP_GET,
     .handler   = stream_handler,
     .user_ctx  = NULL
+  };
+
+// Permet de rediriger la requete /control vers la methode cmd_handler
+  httpd_uri_t cmd_uri{
+    .uri = "/control",
+    .method = HTTP_GET,
+    .handler = cmd_handler,
+    .user_ctx = NULL
   };
 
   // Démarre le serveur web de l'interface HTML accessible depuis le navigateur internet

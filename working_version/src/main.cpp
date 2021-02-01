@@ -36,8 +36,8 @@
 #include "esp_vfs_fat.h"
 
 //Replace with your network credentials - Remplacez par vos identificants de connexion WiFi
-const char* ssid = "ORBI";
-const char* password = "ingeid/3510/1976"; 
+const char* ssid = "SEMI_ATELIER";
+const char* password = "bibiandwiwi"; 
 const int relay = 15;
 
 #define SERIAL_DEBUG true                // Enable / Disable log - activer / désactiver le journal
