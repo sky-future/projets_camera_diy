@@ -34,7 +34,7 @@
 //Replace with your network credentials - Remplacez par vos identificants de connexion WiFi
 const char* ssid = "SEMI_ATELIER";
 const char* password = "bibiandwiwi"; 
-const int relay = 4;
+const int relay = 15;
 
 #define SERIAL_DEBUG true                // Enable / Disable log - activer / désactiver le journal
 #define ESP_LOG_LEVEL ESP_LOG_VERBOSE    // ESP_LOG_NONE, ESP_LOG_VERBOSE, ESP_LOG_DEBUG, ESP_LOG_ERROR, ESP_LOG_WARM, ESP_LOG_INFO
@@ -402,6 +402,7 @@ void setup() {
 
   Serial.begin(115200);
   pinMode(Flashlight, OUTPUT);
+  pinMode(relay,OUTPUT);
   Serial.setDebugOutput(SERIAL_DEBUG);
   esp_log_level_set("*", ESP_LOG_LEVEL);
 
