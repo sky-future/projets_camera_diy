@@ -16,8 +16,8 @@
 			"path": "working_version"
 		},
 		{
-			"name": "test_1.0",
-			"path": "..\\..\\Tests\\test_1.0"
+			"name": "ESP32Cam_Sauvegarde_Drive",
+			"path": "ESP32Cam_Sauvegarde_Drive"
 		}
 	],
 	"settings": {
