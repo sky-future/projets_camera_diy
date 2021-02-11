@@ -14,6 +14,10 @@
 		{
 			"name": "working_version",
 			"path": "working_version"
+		},
+		{
+			"name": "test_1.0",
+			"path": "..\\..\\Tests\\test_1.0"
 		}
 	],
 	"settings": {
