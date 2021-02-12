@@ -4,10 +4,6 @@
 			"path": "."
 		},
 		{
-			"name": "test",
-			"path": "test"
-		},
-		{
 			"name": "projet_camera",
 			"path": "projet_camera"
 		},
