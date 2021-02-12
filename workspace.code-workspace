@@ -22,6 +22,10 @@
 		{
 			"name": "Read html from file",
 			"path": "Read html from file"
+		},
+		{
+			"name": "Firebase_boutton_web_photo",
+			"path": "Firebase_boutton_web_photo"
 		}
 	],
 	"settings": {
