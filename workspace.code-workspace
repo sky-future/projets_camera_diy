@@ -18,6 +18,14 @@
 		{
 			"name": "ESP32Cam_Sauvegarde_Drive",
 			"path": "ESP32Cam_Sauvegarde_Drive"
+		},
+		{
+			"name": "test_recognition",
+			"path": "..\\..\\Tests\\test_recognition"
+		},
+		{
+			"name": "Read html from file",
+			"path": "Read html from file"
 		}
 	],
 	"settings": {

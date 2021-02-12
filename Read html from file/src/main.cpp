@@ -16,6 +16,7 @@
 #include <esp_log.h>
 #include "esp_timer.h"
 #include "esp_camera.h"
+#include "SPIFFS.h"
 
 #include <WiFi.h>
 #include "img_converters.h"
@@ -23,7 +24,6 @@
 #include "fb_gfx.h"
 #include "soc/soc.h"          //disable brownout problems
 #include "soc/rtc_cntl_reg.h" //disable brownout problems
-//#include "dl_lib.h"
 #include "esp_http_server.h" // API https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/protocols/esp_http_server.html
 
 #include "driver/sdmmc_host.h"
@@ -31,9 +31,10 @@
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
 
+
 //Replace with your network credentials - Remplacez par vos identificants de connexion WiFi
-const char *ssid = "ORBI";
-const char *password = "ingeid/3510/1976";
+const char *ssid = "SEMI_ATELIER";
+const char *password = "bibiandwiwi";
 
 //Declare la pin du relay dans une variable
 const int relay = 15;
@@ -42,6 +43,10 @@ const int relay = 15;
 int eventTime;
 int eventTime2;
 int interval;
+
+//test html externe et conversion
+String test;
+char const *testChar;
 
 #define SERIAL_DEBUG true             // Enable / Disable log - activer / désactiver le journal
 #define ESP_LOG_LEVEL ESP_LOG_VERBOSE // ESP_LOG_NONE, ESP_LOG_VERBOSE, ESP_LOG_DEBUG, ESP_LOG_ERROR, ESP_LOG_WARM, ESP_LOG_INFO
@@ -73,63 +78,8 @@ static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 //#define CAMERA_MODEL_M5STACK_PSRAM
 //#define CAMERA_MODEL_M5STACK_WIDE
 #define CAMERA_MODEL_AI_THINKER
+#include "camera_pins.h"
 
-#if defined(CAMERA_MODEL_WROVER_KIT)
-#define PWDN_GPIO_NUM -1
-#define RESET_GPIO_NUM -1
-#define XCLK_GPIO_NUM 21
-#define SIOD_GPIO_NUM 26 //Flash LED - Flash Light is On if SD card is present
-#define SIOC_GPIO_NUM 27
-#define Y9_GPIO_NUM 35
-#define Y8_GPIO_NUM 34
-#define Y7_GPIO_NUM 39
-#define Y6_GPIO_NUM 36
-#define Y5_GPIO_NUM 19
-#define Y4_GPIO_NUM 18
-#define Y3_GPIO_NUM 5
-#define Y2_GPIO_NUM 4
-#define VSYNC_GPIO_NUM 25
-#define HREF_GPIO_NUM 23
-#define PCLK_GPIO_NUM 22
-
-#elif defined(CAMERA_MODEL_M5STACK_PSRAM)
-#define PWDN_GPIO_NUM -1
-#define RESET_GPIO_NUM 15
-#define XCLK_GPIO_NUM 27
-#define SIOD_GPIO_NUM 25
-#define SIOC_GPIO_NUM 23
-#define Y9_GPIO_NUM 19
-#define Y8_GPIO_NUM 36
-#define Y7_GPIO_NUM 18
-#define Y6_GPIO_NUM 39
-#define Y5_GPIO_NUM 5
-#define Y4_GPIO_NUM 34
-#define Y3_GPIO_NUM 35
-#define Y2_GPIO_NUM 32
-#define VSYNC_GPIO_NUM 22
-#define HREF_GPIO_NUM 26
-#define PCLK_GPIO_NUM 21
-
-#elif defined(CAMERA_MODEL_AI_THINKER)
-#define PWDN_GPIO_NUM 32
-#define RESET_GPIO_NUM -1
-#define XCLK_GPIO_NUM 0
-#define SIOD_GPIO_NUM 26 //Flash LED - Flash Light is On if SD card is present
-#define SIOC_GPIO_NUM 27
-#define Y9_GPIO_NUM 35
-#define Y8_GPIO_NUM 34
-#define Y7_GPIO_NUM 39
-#define Y6_GPIO_NUM 36
-#define Y5_GPIO_NUM 21
-#define Y4_GPIO_NUM 19
-#define Y3_GPIO_NUM 18
-#define Y2_GPIO_NUM 5
-#define VSYNC_GPIO_NUM 25
-#define HREF_GPIO_NUM 23
-#define PCLK_GPIO_NUM 22
-#else
-#error "Camera model not selected"
-#endif
 #define Flashlight 4
 
 httpd_handle_t stream_httpd = NULL;
@@ -234,6 +184,7 @@ esp_err_t stream_handler(httpd_req_t *req)
     }
     if (res == ESP_OK)
     {
+      //TODO : essayer de tout mettre dans un seul chunk, donc il faut additioner les string
       eventTime = millis(); //met le temps T dans une variable
       size_t hlen = snprintf((char *)part_buf, 80, _STREAM_PART, _jpg_buf_len); //Utilise un emplacement memoire pour le buf
 
@@ -249,7 +200,8 @@ esp_err_t stream_handler(httpd_req_t *req)
       //digitalWrite(Flashlight, HIGH);
       eventTime2 = millis(); //met le temps T dans une seconde variable
       interval = eventTime - eventTime2;
-      Serial.println(interval);
+     // Serial.println(interval);
+      
 
     }
     if (res == ESP_OK && !flag_b)
@@ -358,59 +310,11 @@ esp_err_t command_handler(httpd_req_t *req)
   return httpd_resp_send(req, NULL, 0);
 }
 
-static const char PROGMEM INDEX_HTML[] = R"rawliteral(
-<!doctype html>
-  <html>
-  <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Expires" Content="0">
-      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css"
-        integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp" crossorigin="anonymous" />
-      <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
-        integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous" />
-  </head>
-  <body onload="document.getElementById('stream').src=location.origin+':81/stream';">
-  <header id="main-header" class="py-2 bg-success text-white">
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-6 text-center">
-          <h1><i class="fas fa-cog"></i> ESP32Cam control ouverture de porte</h1>
-        </div>
-      </div>
-    </div>
-  </header>
-  <section class="bg-white">
-    <div class="container">
-      <div class="row">
-      <div class="col">
-          <div class="card bg-light m-2">
-            <div class="card-header">localhost/stream </div>
-            <div class="card-body">
-              <h5 class="card-title">Camera</h5>
-              <img id="stream" style="margin-top: 50px; width:400px"></img><br>
-            </div>
-          </div>
-        </div>
-      
-      <div class="col">
-        <button type="button" class="btn btn-lg btn-success" onclick="fetch(location.origin+'/open?var=relay&val=1');">Relay On</button>
-        <button type="button" class="btn btn-lg btn-danger" onclick="fetch(location.origin+'/open?var=relay&val=0');">Relay off</button>
-      </div>
-      </div>
-      
-    </div>
-  </section>
-  
-  
-  </body>
-  </html>
-)rawliteral";
 
 static esp_err_t index_handler(httpd_req_t *req)
 {
   httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, (const char *)INDEX_HTML, strlen(INDEX_HTML));
+  return httpd_resp_send(req, (const char *)testChar, strlen(testChar));
 }
 
 void startCameraServer()
@@ -488,6 +392,27 @@ void setup()
   Serial.setDebugOutput(SERIAL_DEBUG);
   esp_log_level_set("*", ESP_LOG_LEVEL);
 
+  //test lecture du fichier index.html
+  if(!SPIFFS.begin(true)){
+    Serial.println("Une erreur est survenu en montant SPIFFS");
+    return;
+  }
+
+  File file = SPIFFS.open("/index.html", "r");
+  if(!file){
+    Serial.println("La lecture du fichier n'a pas fonctionne");
+    return;
+  }
+
+
+  //Lire le contenu du fichier, puis placer dans un String et le convertir en Char
+  while(file.available()){
+     test = file.readString();
+    testChar = test.c_str();
+    Serial.println(strlen(testChar));
+  }
+  file.close();
+
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -548,6 +473,6 @@ void setup()
 
 void loop()
 {
-  delay(1);
+  delay(1); 
 
 }
