@@ -196,6 +196,82 @@ static esp_err_t capture_handler(httpd_req_t *req)
   }
 }
 
+String urlencode(String str)
+{
+    String encodedString="";
+    char c;
+    char code0;
+    char code1;
+    char code2;
+    for (int i =0; i < str.length(); i++){
+      c=str.charAt(i);
+      if (c == ' '){
+        encodedString+= '+';
+      } else if (isalnum(c)){
+        encodedString+=c;
+      } else{
+        code1=(c & 0xf)+'0';
+        if ((c & 0xf) >9){
+            code1=(c & 0xf) - 10 + 'A';
+        }
+        c=(c>>4)&0xf;
+        code0=c+'0';
+        if (c > 9){
+            code0=c - 10 + 'A';
+        }
+        code2='\0';
+        encodedString+='%';
+        encodedString+=code0;
+        encodedString+=code1;
+        //encodedString+=code2;
+      }
+      yield();
+    }
+    return encodedString;
+}
+
+String Photo2Base64() {
+    camera_fb_t * fb = NULL;
+    fb = esp_camera_fb_get();  
+    if(!fb) {
+      Serial.println("Camera capture failed");
+      return "";
+    }
+  
+    String imageFile = "data:image/jpeg;base64,";
+    char *input = (char *)fb->buf;
+    char output[base64_enc_len(3)];
+    for (int i=0;i<fb->len;i++) {
+      base64_encode(output, (input++), 3);
+      if (i%3==0) imageFile += urlencode(String(output));
+    }
+
+    esp_camera_fb_return(fb);
+    
+    return imageFile;
+}
+
+//methode exécuté quand on prend manuellement une photo
+static esp_err_t save_handler(httpd_req_t *req)
+{
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  Firebase.reconnectWiFi(true);
+  Firebase.setMaxRetry(firebaseData, 3);
+  Firebase.setMaxErrorQueue(firebaseData, 30); 
+  Firebase.enableClassicRequest(firebaseData, true);
+
+  String jsonData = "{\"photo\":\"" + Photo2Base64() + "\"}";
+  String photoPath = "/esp32-cam";
+  if (Firebase.pushJSON(firebaseData, photoPath, jsonData)) {
+    Serial.println(firebaseData.dataPath());
+    Serial.println(firebaseData.pushName());
+    Serial.println(firebaseData.dataPath() + "/"+ firebaseData.pushName());
+  } else {
+    Serial.println(firebaseData.errorReason());
+  }
+}
+
+
 /*
    This method stream continuously a video
    Compatible with/avec Home Assistant, HASS.IO
@@ -411,6 +487,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
       <div class="col">
         <button type="button" class="btn btn-lg btn-success" onclick="fetch(location.origin+'/open?var=relay&val=1');">Relay On</button>
         <button type="button" class="btn btn-lg btn-danger" onclick="fetch(location.origin+'/open?var=relay&val=0');">Relay off</button>
+        <button type="button" class = "btn btn-lg btn-danger" onclick="fetch(location.origin+'/save');">Save picture</button>
       </div>
       </div>
       
@@ -422,11 +499,14 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
   </html>
 )rawliteral";
 
+
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, (const char *)INDEX_HTML, strlen(INDEX_HTML));
 }
+
 
 void startCameraServer()
 {
@@ -459,6 +539,12 @@ void startCameraServer()
       .handler = index_handler,
       .user_ctx = NULL};
 
+  static const httpd_uri_t take_picture = {
+      .uri = "/save",
+      .method = HTTP_GET,
+      .handler = save_handler,
+      .user_ctx = NULL};
+
   ESP_LOGI(TAG, "Register URIs and start web server");
   if (httpd_start(&stream_httpd, &config) == ESP_OK)
   {
@@ -475,6 +561,11 @@ void startCameraServer()
     if (httpd_register_uri_handler(stream_httpd, &uri_get) != ESP_OK)
     {
       ESP_LOGE(TAG, "register uri failed for uri_get");
+      return;
+    };
+    if (httpd_register_uri_handler(stream_httpd, &take_picture) != ESP_OK)
+    {
+      ESP_LOGE(TAG, "register uri failed for take_picture");
       return;
     };
     if (httpd_register_uri_handler(stream_httpd, &index_uri) != ESP_OK)
