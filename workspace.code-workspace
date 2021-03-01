@@ -26,6 +26,10 @@
 		{
 			"name": "Firebase_boutton_web_photo",
 			"path": "Firebase_boutton_web_photo"
+		},
+		{
+			"name": "test_mjpeg_Stream",
+			"path": "test_mjpeg_Stream"
 		}
 	],
 	"settings": {
