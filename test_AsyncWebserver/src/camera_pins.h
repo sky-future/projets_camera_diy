@@ -1,5 +1,6 @@
 
 #if defined(CAMERA_MODEL_WROVER_KIT)
+#define CAMERA
 #define PWDN_GPIO_NUM    -1
 #define RESET_GPIO_NUM   -1
 #define XCLK_GPIO_NUM    21
@@ -19,6 +20,7 @@
 #define PCLK_GPIO_NUM    22
 
 #elif defined(CAMERA_MODEL_ESP_EYE)
+#define CAMERA
 #define PWDN_GPIO_NUM    -1
 #define RESET_GPIO_NUM   -1
 #define XCLK_GPIO_NUM    4
@@ -38,6 +40,7 @@
 #define PCLK_GPIO_NUM    25
 
 #elif defined(CAMERA_MODEL_M5STACK_PSRAM)
+#define CAMERA
 #define PWDN_GPIO_NUM     -1
 #define RESET_GPIO_NUM    15
 #define XCLK_GPIO_NUM     27
@@ -57,6 +60,7 @@
 #define PCLK_GPIO_NUM     21
 
 #elif defined(CAMERA_MODEL_M5STACK_WIDE)
+#define CAMERA
 #define PWDN_GPIO_NUM     -1
 #define RESET_GPIO_NUM    15
 #define XCLK_GPIO_NUM     27
@@ -76,6 +80,7 @@
 #define PCLK_GPIO_NUM     21
 
 #elif defined(CAMERA_MODEL_AI_THINKER)
+#define CAMERA
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
