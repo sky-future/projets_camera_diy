@@ -30,6 +30,10 @@
 		{
 			"name": "test_mjpeg_Stream",
 			"path": "test_mjpeg_Stream"
+		},
+		{
+			"name": "test_AsyncWebserver",
+			"path": "test_AsyncWebserver"
 		}
 	],
 	"settings": {

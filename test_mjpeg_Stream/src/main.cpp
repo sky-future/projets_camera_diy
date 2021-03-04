@@ -148,10 +148,7 @@ void setup()
   server.on("/jpg", HTTP_GET, handle_jpg);
   server.onNotFound(handleNotFound);
 
-  server.on("/", HTTP_GET, )
-  {
-    server.send(200, "/index.html", "text/html");
-  });
+
 
 
   server.begin();
