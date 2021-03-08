@@ -9,6 +9,7 @@ static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 
 static void cameraSetup()
 {
+    //Configuration de la caméra au niveau des Pins.
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
@@ -33,10 +34,11 @@ static void cameraSetup()
     //init with high specs to pre-allocate larger buffers
     if (psramFound())
     {
+        //Configuration de la qualité de la caméra.
        // config.frame_size = FRAMESIZE_QVGA;
-       config.frame_size = FRAMESIZE_UXGA;
-        config.jpeg_quality = 4;
-        config.fb_count = 1; // disable continuous mode
+       config.frame_size = FRAMESIZE_SVGA;
+        config.jpeg_quality = 10;
+        config.fb_count = 2; // disable continuous mode
     }
     else
     {
@@ -155,106 +157,106 @@ static size_t streamChunkCallback(uint8_t *buffer, size_t maxLen, size_t index)
     return len;
 }
 
-static void setControl(String variable, int value)
-{
-    sensor_t * s = esp_camera_sensor_get();
-    if (variable.startsWith("framesize"))
-    {
-        s->set_framesize(s, (framesize_t)value);
-    }
-    else if (variable.startsWith("quality"))
-    {
-        s->set_quality(s, value);
-    }
-    else if (variable.startsWith("contrast"))
-    {
-        s->set_contrast(s, value);
-    }
-    else if (variable.startsWith("brightness"))
-    {
-        s->set_brightness(s, value);
-    }
-    else if (variable.startsWith("saturation"))
-    {
-        s->set_saturation(s, value);
-    }
-    else if (variable.startsWith("gainceiling"))
-    {
-        s->set_gainceiling(s, (gainceiling_t)value);
-    }
-    else if (variable.startsWith("colorbar"))
-    {
-        s->set_colorbar(s, value);
-    }
-    else if (variable.startsWith("awb"))
-    {
-        s->set_whitebal(s, value);
-    }
-    else if (variable.startsWith("agc"))
-    {
-        s->set_gain_ctrl(s, value);
-    }
-    else if (variable.startsWith("aec"))
-    {
-        s->set_exposure_ctrl(s, value);
-    }
-    else if (variable.startsWith("hmirror"))
-    {
-        s->set_hmirror(s, value);
-    }
-    else if (variable.startsWith("vflip"))
-    {
-        s->set_vflip(s, value);
-    }
-    else if (variable.startsWith("awb_gain"))
-    {
-        s->set_awb_gain(s, value);
-    }
-    else if (variable.startsWith("agc_gain"))
-    {
-        s->set_agc_gain(s, value);
-    }
-    else if (variable.startsWith("aec_value"))
-    {
-        s->set_aec_value(s, value);
-    }
-    else if (variable.startsWith("aec2"))
-    {
-        s->set_aec2(s, value);
-    }
-    else if (variable.startsWith("dcw"))
-    {
-        s->set_dcw(s, value);
-    }
-    else if (variable.startsWith("bpc"))
-    {
-        s->set_bpc(s, value);
-    }
-    else if (variable.startsWith("wpc"))
-    {
-        s->set_wpc(s, value);
-    }
-    else if (variable.startsWith("raw_gma"))
-    {
-        s->set_raw_gma(s, value);
-    }
-    else if (variable.startsWith("lenc"))
-    {
-        s->set_lenc(s, value);
-    }
-    else if (variable.startsWith("special_effect"))
-    {
-        s->set_special_effect(s, value);
-    }
-    else if (variable.startsWith("wb_mode"))
-    {
-        s->set_wb_mode(s, value);
-    }
-    else if (variable.startsWith("ae_level"))
-    {
-        s->set_ae_level(s, value);
-    }
-}
+// static void setControl(String variable, int value)
+// {
+//     sensor_t * s = esp_camera_sensor_get();
+//     if (variable.startsWith("framesize"))
+//     {
+//         s->set_framesize(s, (framesize_t)value);
+//     }
+//     else if (variable.startsWith("quality"))
+//     {
+//         s->set_quality(s, value);
+//     }
+//     else if (variable.startsWith("contrast"))
+//     {
+//         s->set_contrast(s, value);
+//     }
+//     else if (variable.startsWith("brightness"))
+//     {
+//         s->set_brightness(s, value);
+//     }
+//     else if (variable.startsWith("saturation"))
+//     {
+//         s->set_saturation(s, value);
+//     }
+//     else if (variable.startsWith("gainceiling"))
+//     {
+//         s->set_gainceiling(s, (gainceiling_t)value);
+//     }
+//     else if (variable.startsWith("colorbar"))
+//     {
+//         s->set_colorbar(s, value);
+//     }
+//     else if (variable.startsWith("awb"))
+//     {
+//         s->set_whitebal(s, value);
+//     }
+//     else if (variable.startsWith("agc"))
+//     {
+//         s->set_gain_ctrl(s, value);
+//     }
+//     else if (variable.startsWith("aec"))
+//     {
+//         s->set_exposure_ctrl(s, value);
+//     }
+//     else if (variable.startsWith("hmirror"))
+//     {
+//         s->set_hmirror(s, value);
+//     }
+//     else if (variable.startsWith("vflip"))
+//     {
+//         s->set_vflip(s, value);
+//     }
+//     else if (variable.startsWith("awb_gain"))
+//     {
+//         s->set_awb_gain(s, value);
+//     }
+//     else if (variable.startsWith("agc_gain"))
+//     {
+//         s->set_agc_gain(s, value);
+//     }
+//     else if (variable.startsWith("aec_value"))
+//     {
+//         s->set_aec_value(s, value);
+//     }
+//     else if (variable.startsWith("aec2"))
+//     {
+//         s->set_aec2(s, value);
+//     }
+//     else if (variable.startsWith("dcw"))
+//     {
+//         s->set_dcw(s, value);
+//     }
+//     else if (variable.startsWith("bpc"))
+//     {
+//         s->set_bpc(s, value);
+//     }
+//     else if (variable.startsWith("wpc"))
+//     {
+//         s->set_wpc(s, value);
+//     }
+//     else if (variable.startsWith("raw_gma"))
+//     {
+//         s->set_raw_gma(s, value);
+//     }
+//     else if (variable.startsWith("lenc"))
+//     {
+//         s->set_lenc(s, value);
+//     }
+//     else if (variable.startsWith("special_effect"))
+//     {
+//         s->set_special_effect(s, value);
+//     }
+//     else if (variable.startsWith("wb_mode"))
+//     {
+//         s->set_wb_mode(s, value);
+//     }
+//     else if (variable.startsWith("ae_level"))
+//     {
+//         s->set_ae_level(s, value);
+//     }
+// }
 
 static void handleStatus(AsyncWebServerRequest *request)
 {
@@ -321,14 +323,14 @@ static void handleStream(AsyncWebServerRequest *request)
     request->send(response);
 }
 
-static void handleControl(AsyncWebServerRequest *request)
-{
-    String variable = request->arg("var");
-    String value = request->arg("val");
+// static void handleControl(AsyncWebServerRequest *request)
+// {
+//     String variable = request->arg("var");
+//     String value = request->arg("val");
 
-    setControl(variable, atoi(value.c_str()));
+//     setControl(variable, atoi(value.c_str()));
 
-    request->send(200, "text/plain", "Set " + variable + " to " + value);
-}
+//     request->send(200, "text/plain", "Set " + variable + " to " + value);
+// }
 
 #endif // CAMERA

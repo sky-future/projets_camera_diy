@@ -1,2 +1,2 @@
-#define SSID1 "SEMI_ATELIER"
-#define PWD1 "bibiandwiwi"
+#define SSID1 "ORBI"
+#define PWD1 "ingeid/3510/1976"

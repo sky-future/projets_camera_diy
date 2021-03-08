@@ -13,6 +13,7 @@
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+
 //boolean takeNewPhoto = false;
 const int led = 4;
 const int relay = 15;
@@ -82,12 +83,14 @@ void setup() {
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
   {
     digitalWrite(relay, HIGH);
+    digitalWrite(led, HIGH);
     request->send(200);
   });
 
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
   {
     digitalWrite(relay, LOW);
+    digitalWrite(led, LOW);
     request->send(200);
   });
 
