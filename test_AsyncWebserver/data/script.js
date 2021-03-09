@@ -1,13 +1,9 @@
-function onButton()
+function onButton(loc)
 {
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("GET", "on", true);
-    xhttp.send;
+    fetch(loc+"/on");
 }
 
-function offButton()
+function offButton(loc)
 {
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("GET", "off" , true);
-    xhttp.send;
+    fetch(loc+"/off");
 }
