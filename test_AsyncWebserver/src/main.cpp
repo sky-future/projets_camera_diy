@@ -16,7 +16,20 @@ AsyncWebServer server(80);
 
 //boolean takeNewPhoto = false;
 const int led = 4;
-const int relay = 15;
+const int gpio12 = 12;
+const int gpio13 = 13;
+const int gpio14 = 14;
+const int gpio15 = 15;
+const int gpio16 = 16;
+
+int gpio12State = LOW;
+int gpio13State = LOW;
+int gpio14State = LOW;
+int gpio15State = LOW;
+int gpio16State = LOW;
+
+
+
 
 // // Photo File Name to save in SPIFFS
 // #define FILE_PHOTO "/photo.jpg"
@@ -44,9 +57,14 @@ void setup() {
 
   //GPIO
   pinMode(led, OUTPUT);
-  pinMode (relay, OUTPUT);
+  pinMode (gpio12, OUTPUT);
+  pinMode (gpio13, OUTPUT);
+  pinMode (gpio14, OUTPUT);
+  pinMode (gpio15, OUTPUT);
+  pinMode (gpio16, OUTPUT);
+
   digitalWrite(led, LOW);
-  digitalWrite(relay, LOW);
+  digitalWrite(gpio15, LOW);
 
   //SPIFFS
   if(!SPIFFS.begin())
