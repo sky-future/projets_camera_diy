@@ -38,6 +38,10 @@
 		{
 			"name": "test_library",
 			"path": "..\\..\\Tests\\test_library"
+		},
+		{
+			"name": "angularFunctions",
+			"path": "angularFunctions"
 		}
 	],
 	"settings": {
