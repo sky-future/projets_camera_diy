@@ -3,6 +3,9 @@
 #include "ESPAsyncWebServer.h"
 #include "AsyncTCP.h"
 #include "SPIFFS.h"
+#include "soc/soc.h"          //disable brownout problems
+#include "soc/rtc_cntl_reg.h" //disable brownout problems
+
 
 #define CAMERA_MODEL_AI_THINKER
 #include "cameraAPI.h"
@@ -100,14 +103,14 @@ void setup() {
 
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
   {
-    digitalWrite(relay, HIGH);
+    digitalWrite(gpio15, HIGH);
     digitalWrite(led, HIGH);
     request->send(200);
   });
 
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
   {
-    digitalWrite(relay, LOW);
+    digitalWrite(gpio15, LOW);
     digitalWrite(led, LOW);
     request->send(200);
   });

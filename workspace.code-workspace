@@ -42,9 +42,16 @@
 		{
 			"name": "angularFunctions",
 			"path": "angularFunctions"
+		},
+		{
+			"name": "Projet_Integrale_MultiTask",
+			"path": "Projet_Integrale_MultiTask"
 		}
 	],
 	"settings": {
-		"liveServer.settings.multiRootWorkspaceName": "projets_camera_diy"
+		"liveServer.settings.multiRootWorkspaceName": "projets_camera_diy",
+		"files.associations": {
+			"functional": "cpp"
+		}
 	}
 }
