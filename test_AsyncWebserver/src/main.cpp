@@ -101,16 +101,68 @@ void setup() {
     request->send(SPIFFS, "/script.js", "text/javascript");
   });
 
-    server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
+    server.on("/gpio12/on", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio12, HIGH);
+    digitalWrite(led, HIGH);
+    request->send(200);
+  });
+
+  server.on("/gpio12/off", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio12, LOW);
+    digitalWrite(led, LOW);
+    request->send(200);
+  });
+    server.on("/gpio13/on", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio13, HIGH);
+    digitalWrite(led, HIGH);
+    request->send(200);
+  });
+
+  server.on("/gpio13/off", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio13, LOW);
+    digitalWrite(led, LOW);
+    request->send(200);
+  });
+    server.on("/gpio14/on", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio14, HIGH);
+    digitalWrite(led, HIGH);
+    request->send(200);
+  });
+
+  server.on("/gpio14/off", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio14, LOW);
+    digitalWrite(led, LOW);
+    request->send(200);
+  });
+    server.on("/gpio15/on", HTTP_GET, [](AsyncWebServerRequest *request)
   {
     digitalWrite(gpio15, HIGH);
     digitalWrite(led, HIGH);
     request->send(200);
   });
 
-  server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
+  server.on("/gpio15/off", HTTP_GET, [](AsyncWebServerRequest *request)
   {
     digitalWrite(gpio15, LOW);
+    digitalWrite(led, LOW);
+    request->send(200);
+  });
+    server.on("/gpio16/on", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio16, HIGH);
+    digitalWrite(led, HIGH);
+    request->send(200);
+  });
+
+  server.on("/gpio16/off", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    digitalWrite(gpio16, LOW);
     digitalWrite(led, LOW);
     request->send(200);
   });
