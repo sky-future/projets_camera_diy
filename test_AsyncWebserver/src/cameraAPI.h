@@ -6,6 +6,7 @@
 static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
+static bool is_client_connected = false;
 
 static void cameraSetup()
 {
@@ -31,21 +32,13 @@ static void cameraSetup()
     config.pin_reset = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG;
-    //init with high specs to pre-allocate larger buffers
-    if (psramFound())
-    {
-        //Configuration de la qualité de la caméra.
-       // config.frame_size = FRAMESIZE_QVGA;
-       config.frame_size = FRAMESIZE_SVGA;
-        config.jpeg_quality = 10;
-        config.fb_count = 2; // disable continuous mode
-    }
-    else
-    {
-        config.frame_size = FRAMESIZE_QVGA;
-        config.jpeg_quality = 30;
-        config.fb_count = 1; // disable continuous mode
-    }
+
+    //Configuration de la qualité de la caméra.
+    // config.frame_size = FRAMESIZE_QVGA;
+    config.frame_size = FRAMESIZE_SVGA;
+    config.jpeg_quality = 40;
+    config.fb_count = 2; // disable continuous mode
+    Serial.printf("PSRAM found\n");
 
 #if defined(CAMERA_MODEL_ESP_EYE)
     pinMode(13, INPUT_PULLUP);
@@ -91,7 +84,7 @@ static size_t _jpg_buf_offset = 0;
 
 static size_t streamChunkCallback(uint8_t *buffer, size_t maxLen, size_t index)
 {
-    // Serial.printf("streamChunkCallback, maxLen: %d\n", maxLen);
+    //Serial.printf("streamChunkCallback, maxLen: %d\n", maxLen);
     size_t len = 0;
     if (!fb)
     {
@@ -316,11 +309,28 @@ static void handleSnap(AsyncWebServerRequest *request)
     esp_camera_fb_return(fb);
 }
 
+static void clientDisconnected(void* arg, AsyncClient *client){
+            Serial.println("disconnected !!");
+            is_client_connected = false;
+}
+
 static void handleStream(AsyncWebServerRequest *request)
 {
-    AsyncWebServerResponse *response = request->beginChunkedResponse(_STREAM_CONTENT_TYPE, streamChunkCallback);
-    response->addHeader("Access-Control-Allow-Origin", "*");
-    request->send(response);
+    if(!is_client_connected){
+        is_client_connected =true;
+        request->client()->onDisconnect(clientDisconnected);
+
+        AsyncWebServerResponse *response = request->beginChunkedResponse(_STREAM_CONTENT_TYPE, streamChunkCallback);
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
+        //is_client_connected = false;
+
+    }
+    else{
+        request->send(200);
+        Serial.println("Unauthorized");
+    }
+    
 }
 
 // static void handleControl(AsyncWebServerRequest *request)

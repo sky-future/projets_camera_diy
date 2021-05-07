@@ -32,8 +32,8 @@
 #include "esp_vfs_fat.h"
 
 //Replace with your network credentials - Remplacez par vos identificants de connexion WiFi
-const char *ssid = "SEMI_ATELIER";
-const char *password = "bibiandwiwi";
+const char *ssid = "ORBI";
+const char *password = "ingeid/3510/1976";
 
 //Declare la pin du relay dans une variable
 const int relay = 15;
