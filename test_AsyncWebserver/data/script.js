@@ -1,9 +1,10 @@
 function onButton(loc)
 {
-    fetch(loc+"/gpio15/on");
+    fetch(loc+"/gpio12/on");
 }
 
 function offButton(loc)
 {
-    fetch(loc+"/gpio15/off");
+    fetch(loc+"/gpio12/off");
 }
+
